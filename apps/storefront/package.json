@@ -17,6 +17,7 @@
       "db:reset": "npx prisma db push --force-reset",
       "db:push": "npx prisma db push",
       "db:seed": "npx prisma db seed",
+      "db:backfill-inventory": "bun prisma/backfill-inventory.ts",
       "db:studio": "npx prisma studio"
    },
    "dependencies": {
