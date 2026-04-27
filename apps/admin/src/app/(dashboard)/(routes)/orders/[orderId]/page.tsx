@@ -16,7 +16,6 @@ import prisma from '@/lib/prisma'
 import Link from 'next/link'
 
 import { OrderForm } from './components/order-form'
-import { ShipOrderButton } from './components/ship-button'
 
 const ProductPage = async ({ params }: { params: { orderId: string } }) => {
    const order = await prisma.order.findUnique({
@@ -38,8 +37,6 @@ const ProductPage = async ({ params }: { params: { orderId: string } }) => {
                provider: true,
             },
          },
-         warehouse: true,
-         reservations: true,
          orderItems: { include: { product: true } },
          refund: true,
       },
@@ -124,34 +121,6 @@ const ProductPage = async ({ params }: { params: { orderId: string } }) => {
       )
    }
 
-   function WarehouseCard() {
-      return (
-         <Card className="my-4 p-2">
-            <CardHeader>
-               <CardTitle>Fulfillment</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-               <div>
-                  <h3>Shipping warehouse</h3>
-                  <p className="text-muted-foreground">
-                     {order?.warehouse?.name || 'Unassigned'}
-                  </p>
-               </div>
-               <div>
-                  <h3>Reservations</h3>
-                  <p className="text-muted-foreground">
-                     {order?.reservations?.length || 0} reservation(s)
-                  </p>
-               </div>
-               <ShipOrderButton
-                  orderId={order?.id}
-                  disabled={!order || order.status === 'Shipped'}
-               />
-            </CardContent>
-         </Card>
-      )
-   }
-
    return (
       <div className="flex-col">
          <div className="flex-1 pt-6 pb-12">
@@ -162,7 +131,6 @@ const ProductPage = async ({ params }: { params: { orderId: string } }) => {
                />
             </div>
             <UserCard />
-            <WarehouseCard />
             <EditOrderCard />
          </div>
       </div>

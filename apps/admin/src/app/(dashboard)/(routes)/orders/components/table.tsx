@@ -20,7 +20,6 @@ export type OrderColumn = {
    payable: string
    number: string
    createdAt: string
-   warehouse: string
 }
 
 export const OrderColumns: ColumnDef<OrderColumn>[] = [
@@ -40,10 +39,6 @@ export const OrderColumns: ColumnDef<OrderColumn>[] = [
       accessorKey: 'isPaid',
       header: 'Paid',
       cell: (props) => (props.cell.getValue() ? <CheckIcon /> : <XIcon />),
-   },
-   {
-      accessorKey: 'warehouse',
-      header: 'Warehouse',
    },
    {
       id: 'actions',

@@ -68,17 +68,9 @@ export async function PATCH(
          return new NextResponse('Unauthorized', { status: 401 })
       }
 
-      const body = await req.json()
       const {
-         title,
-         price,
-         discount,
-         stock,
-         isFeatured,
-         isAvailable,
-         trackInventory,
-         allowBackorders,
-      } = body.data ?? body
+         data: { title, price, discount, stock, isFeatured, isAvailable },
+      } = await req.json()
 
       const product = await prisma.product.update({
          where: {
@@ -91,8 +83,6 @@ export async function PATCH(
             stock,
             isFeatured,
             isAvailable,
-            trackInventory,
-            allowBackorders,
          },
       })
 
