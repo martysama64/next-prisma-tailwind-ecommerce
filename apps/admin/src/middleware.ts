@@ -64,6 +64,8 @@ export const config = {
       '/banners/:path*',
       '/orders/:path*',
       '/categories/:path*',
+      '/warehouses/:path*',
+      '/inventory/:path*',
       '/payments/:path*',
       '/codes/:path*',
       '/users/:path*',

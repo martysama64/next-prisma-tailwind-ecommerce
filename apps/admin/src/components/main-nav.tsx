@@ -26,13 +26,23 @@ export function MainNav({
          label: 'Products',
          active: pathname.includes(`/products`),
       },
-      {
-         href: `/orders`,
-         label: 'Orders',
-         active: pathname.includes(`/orders`),
-      },
-      {
-         href: `/payments`,
+       {
+          href: `/orders`,
+          label: 'Orders',
+          active: pathname.includes(`/orders`),
+       },
+       {
+          href: `/warehouses`,
+          label: 'Warehouses',
+          active: pathname.includes(`/warehouses`),
+       },
+       {
+          href: `/inventory`,
+          label: 'Inventory',
+          active: pathname.includes(`/inventory`),
+       },
+       {
+          href: `/payments`,
          label: 'Payments',
          active: pathname.includes(`/payments`),
       },
