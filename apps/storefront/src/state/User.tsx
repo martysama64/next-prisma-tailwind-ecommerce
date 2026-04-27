@@ -27,39 +27,57 @@ export const UserContextProvider = ({ children }) => {
                cache: 'no-store',
             })
 
+            if (!response.ok) {
+               setUser(null)
+               return
+            }
+
             const json = await response.json()
 
             if (isVariableValid(json)) {
                setUser(json)
-               setLoading(false)
             }
-
-            setLoading(false)
          }
       } catch (error) {
          console.error({ error })
+      } finally {
+         setLoading(false)
       }
    }
 
    useEffect(() => {
       try {
          async function fetchData() {
-            const response = await fetch(`/api/profile`, {
-               cache: 'no-store',
-            })
+            try {
+               setLoading(true)
 
-            const json = await response.json()
+               const response = await fetch(`/api/profile`, {
+                  cache: 'no-store',
+               })
 
-            if (isVariableValid(json)) {
-               setUser(json)
+               if (!response.ok) {
+                  setUser(null)
+                  return
+               }
+
+               const json = await response.json()
+
+               if (isVariableValid(json)) {
+                  setUser(json)
+               }
+            } finally {
                setLoading(false)
             }
          }
 
          if (authenticated) fetchData()
-         if (!authenticated) setLoading(false)
+         if (!authenticated) {
+            setUser(null)
+            setLoading(false)
+         }
       } catch (error) {
          console.error({ error })
+         setLoading(false)
       }
    }, [authenticated])
 

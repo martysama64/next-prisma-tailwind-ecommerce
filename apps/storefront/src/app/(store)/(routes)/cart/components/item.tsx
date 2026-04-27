@@ -27,7 +27,7 @@ export const Item = ({ cartItem }) => {
    const { product, productId, count } = cartItem
 
    function findLocalCartIndexById(array, productId) {
-      for (let i = 0; i < array.length; i++) {
+      for (let i = 0; i < array?.items?.length; i++) {
          if (array?.items[i]?.productId === productId) {
             return i
          }
@@ -66,9 +66,13 @@ export const Item = ({ cartItem }) => {
                }),
                cache: 'no-store',
                headers: {
-                  'Content-Type': 'application/json-string',
+                  'Content-Type': 'application/json',
                },
             })
+
+            if (!response.ok) {
+               return
+            }
 
             const json = await response.json()
 
@@ -103,9 +107,10 @@ export const Item = ({ cartItem }) => {
             dispatchCart(localCart)
          }
 
-         setFetchingCart(false)
       } catch (error) {
          console.error({ error })
+      } finally {
+         setFetchingCart(false)
       }
    }
 
@@ -123,9 +128,13 @@ export const Item = ({ cartItem }) => {
                }),
                cache: 'no-store',
                headers: {
-                  'Content-Type': 'application/json-string',
+                  'Content-Type': 'application/json',
                },
             })
+
+            if (!response.ok) {
+               return
+            }
 
             const json = await response.json()
             dispatchCart(json)
@@ -149,16 +158,18 @@ export const Item = ({ cartItem }) => {
 
          if (
             !authenticated &&
-            getCountInCart({ cartItems: cart?.items, productId }) === 1
+            getCountInCart({ cartItems: cart?.items, productId }) === 1 &&
+            index >= 0
          ) {
             localCart.items.splice(index, 1)
 
             dispatchCart(localCart)
          }
 
-         setFetchingCart(false)
       } catch (error) {
          console.error({ error })
+      } finally {
+         setFetchingCart(false)
       }
    }
 

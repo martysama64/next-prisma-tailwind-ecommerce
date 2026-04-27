@@ -9,7 +9,7 @@ export async function GET(req: Request) {
          return new NextResponse('Unauthorized', { status: 401 })
       }
 
-      const cart = await prisma.cart.findUniqueOrThrow({
+      const cart = await prisma.cart.findUnique({
          where: { userId },
          include: {
             items: {
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
          },
       })
 
-      return NextResponse.json(cart)
+      return NextResponse.json(cart ?? { userId, items: [] })
    } catch (error) {
       console.error('[GET_CART]', error)
       return new NextResponse('Internal error', { status: 500 })
@@ -43,8 +43,8 @@ export async function POST(req: Request) {
       const { productId, count } = await req.json()
 
       if (count < 1) {
-         await prisma.cartItem.delete({
-            where: { UniqueCartItem: { cartId: userId, productId } },
+         await prisma.cartItem.deleteMany({
+            where: { cartId: userId, productId },
          })
       } else {
          await prisma.cart.upsert({
@@ -55,6 +55,12 @@ export async function POST(req: Request) {
                user: {
                   connect: {
                      id: userId,
+                  },
+               },
+               items: {
+                  create: {
+                     productId,
+                     count,
                   },
                },
             },
@@ -80,22 +86,27 @@ export async function POST(req: Request) {
          })
       }
 
-      const cart = await prisma.cart.findUniqueOrThrow({
+      const cart = await prisma.cart.findUnique({
          where: {
             userId,
          },
          include: {
             items: {
                include: {
-                  product: true,
+                  product: {
+                     include: {
+                        brand: true,
+                        categories: true,
+                     },
+                  },
                },
             },
          },
       })
 
-      return NextResponse.json(cart)
+      return NextResponse.json(cart ?? { userId, items: [] })
    } catch (error) {
-      console.error('[PRODUCT_DELETE]', error)
+      console.error('[CART_POST]', error)
       return new NextResponse('Internal error', { status: 500 })
    }
 }

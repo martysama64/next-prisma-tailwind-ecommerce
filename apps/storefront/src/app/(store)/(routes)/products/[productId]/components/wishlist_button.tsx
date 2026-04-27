@@ -20,16 +20,23 @@ export default function WishlistButton({ product }) {
                method: 'GET',
             })
 
+            if (!response.ok) {
+               setWishlist([])
+               return
+            }
+
             const json = await response.json()
 
             setWishlist(json)
-            setFetchingWishlist(false)
          } catch (error) {
             console.error({ error })
+         } finally {
+            setFetchingWishlist(false)
          }
       }
 
       if (authenticated) getWishlist()
+      if (!authenticated) setFetchingWishlist(false)
    }, [authenticated])
 
    function isProductInWishlist() {
@@ -47,19 +54,24 @@ export default function WishlistButton({ product }) {
 
          const response = await fetch(`/api/wishlist`, {
             method: 'POST',
-            body: JSON.stringify({ productId: product?.id, connect: true }),
+            body: JSON.stringify({ productId: product?.id }),
             cache: 'no-store',
             headers: {
-               'Content-Type': 'application/json-string',
+               'Content-Type': 'application/json',
             },
          })
+
+         if (!response.ok) {
+            return
+         }
 
          const json = await response.json()
 
          setWishlist(json)
-         setFetchingWishlist(false)
       } catch (error) {
          console.error({ error })
+      } finally {
+         setFetchingWishlist(false)
       }
    }
 
@@ -69,19 +81,24 @@ export default function WishlistButton({ product }) {
 
          const response = await fetch(`/api/wishlist`, {
             method: 'DELETE',
-            body: JSON.stringify({ productId: product.id, connect: false }),
+            body: JSON.stringify({ productId: product.id }),
             cache: 'no-store',
             headers: {
-               'Content-Type': 'application/json-string',
+               'Content-Type': 'application/json',
             },
          })
+
+         if (!response.ok) {
+            return
+         }
 
          const json = await response.json()
 
          setWishlist(json)
-         setFetchingWishlist(false)
       } catch (error) {
          console.error({ error })
+      } finally {
+         setFetchingWishlist(false)
       }
    }
 

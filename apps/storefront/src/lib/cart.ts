@@ -5,12 +5,21 @@ export function writeLocalCart(items) {
 export function getLocalCart() {
    if (typeof window !== 'undefined' && window.localStorage) {
       try {
-         return JSON.parse(window.localStorage.getItem('Cart'))
+         const cart = JSON.parse(window.localStorage.getItem('Cart'))
+
+         if (!cart?.items) {
+            writeLocalCart({ items: [] })
+            return { items: [] }
+         }
+
+         return cart
       } catch (error) {
          writeLocalCart({ items: [] })
          return { items: [] }
       }
    }
+
+   return { items: [] }
 }
 
 export function getCountInCart({ cartItems, productId }) {

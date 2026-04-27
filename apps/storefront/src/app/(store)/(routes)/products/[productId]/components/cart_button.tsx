@@ -23,7 +23,7 @@ export function ButtonComponent({ product }) {
    const [fetchingCart, setFetchingCart] = useState(false)
 
    function findLocalCartIndexById(array, productId) {
-      for (let i = 0; i < array.length; i++) {
+      for (let i = 0; i < array?.items?.length; i++) {
          if (array?.items[i]?.productId === productId) {
             return i
          }
@@ -53,9 +53,13 @@ export function ButtonComponent({ product }) {
                }),
                cache: 'no-store',
                headers: {
-                  'Content-Type': 'application/json-string',
+                  'Content-Type': 'application/json',
                },
             })
+
+            if (!response.ok) {
+               return
+            }
 
             const json = await response.json()
 
@@ -84,9 +88,10 @@ export function ButtonComponent({ product }) {
             dispatchCart(localCart)
          }
 
-         setFetchingCart(false)
       } catch (error) {
          console.error({ error })
+      } finally {
+         setFetchingCart(false)
       }
    }
 
@@ -112,9 +117,13 @@ export function ButtonComponent({ product }) {
                }),
                cache: 'no-store',
                headers: {
-                  'Content-Type': 'application/json-string',
+                  'Content-Type': 'application/json',
                },
             })
+
+            if (!response.ok) {
+               return
+            }
 
             const json = await response.json()
 
@@ -134,15 +143,16 @@ export function ButtonComponent({ product }) {
             dispatchCart(localCart)
          }
 
-         if (!authenticated && count === 1) {
+         if (!authenticated && count === 1 && index >= 0) {
             localCart.items.splice(index, 1)
 
             dispatchCart(localCart)
          }
 
-         setFetchingCart(false)
       } catch (error) {
          console.error({ error })
+      } finally {
+         setFetchingCart(false)
       }
    }
 
