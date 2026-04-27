@@ -7,6 +7,7 @@ import {
    StockTransferStatus,
 } from '@prisma/client'
 import { z } from 'zod'
+import { sendMail } from '@persepolis/mail'
 
 type InventoryTx = Prisma.TransactionClient
 
@@ -603,24 +604,99 @@ export async function notifyLowStockIfNeeded(
 ) {
    const inventory = await tx.inventory.findUnique({
       where: { id: inventoryId },
-      select: {
-         quantity: true,
-         reservedQuantity: true,
-         reorderPoint: true,
+      include: {
+         product: {
+            select: {
+               title: true,
+            },
+         },
+         warehouse: {
+            select: {
+               name: true,
+            },
+         },
       },
    })
 
    if (!inventory) return false
 
-   const isLowStock = getAvailableQuantity(inventory) <= inventory.reorderPoint
+   const availableQuantity = getAvailableQuantity(inventory)
+   const isLowStock = availableQuantity <= inventory.reorderPoint
 
    if (!isLowStock) return false
 
-   return queueLowStockNotificationPlaceholder(inventoryId)
+   const owners = await tx.owner.findMany({
+      select: {
+         email: true,
+      },
+   })
+
+   const ownerEmails = owners
+      .map((owner) => owner.email)
+      .filter(Boolean)
+
+   if (!ownerEmails.length) return false
+
+   queueLowStockNotificationEmail({
+      to: ownerEmails,
+      productTitle: inventory.product.title,
+      warehouseName: inventory.warehouse.name,
+      availableQuantity,
+      reorderPoint: inventory.reorderPoint,
+      reorderQuantity: inventory.reorderQuantity,
+   })
+
+   return true
 }
 
-export async function queueLowStockNotificationPlaceholder(_inventoryId: string) {
+export function queueLowStockNotificationEmail({
+   to,
+   productTitle,
+   warehouseName,
+   availableQuantity,
+   reorderPoint,
+   reorderQuantity,
+}: {
+   to: string[]
+   productTitle: string
+   warehouseName: string
+   availableQuantity: number
+   reorderPoint: number
+   reorderQuantity: number
+}) {
+   const subject = `Low stock alert: ${productTitle}`
+   const html = `
+      <h2>Low stock alert</h2>
+      <p><strong>Product:</strong> ${escapeHtml(productTitle)}</p>
+      <p><strong>Warehouse:</strong> ${escapeHtml(warehouseName)}</p>
+      <p><strong>Available quantity:</strong> ${availableQuantity}</p>
+      <p><strong>Reorder point:</strong> ${reorderPoint}</p>
+      <p><strong>Recommended reorder quantity:</strong> ${reorderQuantity}</p>
+   `
+
+   setTimeout(() => {
+      void Promise.allSettled(
+         to.map((email) =>
+            sendMail({
+               name: process.env.NEXT_PUBLIC_URL || 'Inventory Management',
+               to: email,
+               subject,
+               html,
+            })
+         )
+      )
+   }, 0)
+
    return true
+}
+
+function escapeHtml(value: string) {
+   return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
 }
 
 async function getProductsForCartItems(
