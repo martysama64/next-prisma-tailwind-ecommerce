@@ -1,5 +1,10 @@
 import config from '@/config/site'
 import Mail from '@/emails/order_notification_owner'
+import {
+   getAvailableQuantity,
+   reserveStockForOrder,
+   selectWarehouseForOrder,
+} from '@/lib/inventory'
 import prisma from '@/lib/prisma'
 import { sendMail } from '@persepolis/mail'
 import { render } from '@react-email/render'
@@ -40,91 +45,152 @@ export async function POST(req: Request) {
          return new NextResponse('Unauthorized', { status: 401 })
       }
 
-      const { addressId, discountCode } = await req.json()
+      const { addressId, discountCode, warehouseId } = await req.json()
 
-      if (discountCode) {
-         await prisma.discountCode.findUniqueOrThrow({
-            where: {
-               code: discountCode,
-               stock: {
-                  gte: 1,
-               },
-            },
-         })
-      }
+      const order = await prisma.$transaction(async (tx) => {
+         if (addressId) {
+            await tx.address.findFirstOrThrow({
+               where: { id: addressId, userId },
+            })
+         }
 
-      const cart = await prisma.cart.findUniqueOrThrow({
-         where: {
-            userId,
-         },
-         include: {
-            items: {
-               include: {
-                  product: true,
-               },
-            },
-         },
-      })
-
-      const { tax, total, discount, payable } = calculateCosts({ cart })
-
-      const order = await prisma.order.create({
-         data: {
-            user: {
-               connect: {
-                  id: userId,
-               },
-            },
-            status: 'Processing',
-            total,
-            tax,
-            payable,
-            discount,
-            shipping: 0,
-            address: {
-               connect: { id: addressId },
-            },
-            orderItems: {
-               create: cart?.items.map((orderItem) => ({
-                  count: orderItem.count,
-                  price: orderItem.product.price,
-                  discount: orderItem.product.discount,
-                  product: {
-                     connect: {
-                        id: orderItem.productId,
-                     },
+         const cart = await tx.cart.findUniqueOrThrow({
+            where: { userId },
+            include: {
+               items: {
+                  include: {
+                     product: true,
                   },
-               })),
+               },
             },
-         },
-      })
-
-      const owners = await prisma.owner.findMany()
-
-      const notifications = await prisma.notification.createMany({
-         data: owners.map((owner) => ({
-            userId: owner.id,
-            content: `Order #${order.number} was created was created with a value of $${payable}.`,
-         })),
-      })
-
-      for (const owner of owners) {
-         await sendMail({
-            name: config.name,
-            to: owner.email,
-            subject: 'An order was created.',
-            html: await render(
-               Mail({
-                  id: order.id,
-                  payable: payable.toFixed(2),
-                  orderNum: order.number.toString(),
-               })
-            ),
          })
-      }
+
+         if (!cart.items.length) {
+            throw new OrderValidationError('Cart is empty')
+         }
+
+         const selectedWarehouse = await selectWarehouseForOrder(
+            tx,
+            cart.items,
+            warehouseId
+         )
+
+         const insufficientStock = await getInsufficientStockItems(
+            tx,
+            cart.items,
+            selectedWarehouse.id
+         )
+
+         if (insufficientStock.length) {
+            throw new InsufficientStockError(insufficientStock)
+         }
+
+         let discountCodeRecord = null
+
+         if (discountCode) {
+            discountCodeRecord = await tx.discountCode.findUniqueOrThrow({
+               where: { code: discountCode },
+            })
+
+            if (discountCodeRecord.stock < 1) {
+               throw new OrderValidationError('Discount code is out of stock')
+            }
+
+            const updatedDiscountCodes = await tx.discountCode.updateMany({
+               where: {
+                  id: discountCodeRecord.id,
+                  stock: { gte: 1 },
+               },
+               data: {
+                  stock: { decrement: 1 },
+               },
+            })
+
+            if (updatedDiscountCodes.count !== 1) {
+               throw new OrderValidationError('Discount code is unavailable')
+            }
+         }
+
+         const { tax, total, discount, payable } = calculateCosts({ cart })
+
+         const createdOrder = await tx.order.create({
+            data: {
+               user: { connect: { id: userId } },
+               warehouse: { connect: { id: selectedWarehouse.id } },
+               status: 'Processing',
+               total,
+               tax,
+               payable,
+               discount,
+               shipping: 0,
+               ...(addressId && {
+                  address: { connect: { id: addressId } },
+               }),
+               ...(discountCodeRecord && {
+                  discountCode: { connect: { id: discountCodeRecord.id } },
+               }),
+               orderItems: {
+                  create: cart.items.map((orderItem) => ({
+                     count: orderItem.count,
+                     price: orderItem.product.price,
+                     discount: orderItem.product.discount,
+                     product: {
+                        connect: { id: orderItem.productId },
+                     },
+                  })),
+               },
+            },
+         })
+
+         await reserveStockForOrder(
+            tx,
+            createdOrder,
+            cart.items,
+            selectedWarehouse.id
+         )
+
+         await tx.cartItem.deleteMany({
+            where: { cartId: userId },
+         })
+
+         return createdOrder
+      })
+
+      await sendOrderCreatedSideEffects(order)
 
       return NextResponse.json(order)
    } catch (error) {
+      if (error instanceof InsufficientStockError) {
+         return NextResponse.json(
+            { error: 'INSUFFICIENT_STOCK', items: error.items },
+            { status: 409 }
+         )
+      }
+
+      if (error instanceof OrderValidationError) {
+         return new NextResponse(error.message, { status: 400 })
+      }
+
+      if (
+         error instanceof Error &&
+         error.message.startsWith('Insufficient stock for product ')
+      ) {
+         return NextResponse.json(
+            {
+               error: 'INSUFFICIENT_STOCK',
+               items: [
+                  {
+                     productId: error.message.replace(
+                        'Insufficient stock for product ',
+                        ''
+                     ),
+                  },
+               ],
+            },
+            { status: 409 }
+         )
+      }
+
       console.error('[ORDER_POST]', error)
       return new NextResponse('Internal error', { status: 500 })
    }
@@ -151,3 +217,74 @@ function calculateCosts({ cart }) {
       payable: parseFloat(payable.toFixed(2)),
    }
 }
+
+async function getInsufficientStockItems(tx, cartItems, warehouseId: string) {
+   const inventory = await tx.inventory.findMany({
+      where: {
+         warehouseId,
+         productId: { in: cartItems.map((item) => item.productId) },
+      },
+   })
+
+   return cartItems
+      .map((item) => {
+         if (!item.product.trackInventory || item.product.allowBackorders) {
+            return null
+         }
+
+         const inventoryRow = inventory.find(
+            (row) => row.productId === item.productId
+         )
+         const available = inventoryRow ? getAvailableQuantity(inventoryRow) : 0
+
+         if (available >= item.count) return null
+
+         return {
+            productId: item.productId,
+            requested: item.count,
+            available,
+         }
+      })
+      .filter(Boolean)
+}
+
+async function sendOrderCreatedSideEffects(order) {
+   try {
+      const owners = await prisma.owner.findMany()
+
+      await prisma.notification.createMany({
+         data: owners.map((owner) => ({
+            userId: owner.id,
+            content: `Order #${order.number} was created was created with a value of $${order.payable}.`,
+         })),
+      })
+
+      for (const owner of owners) {
+         await sendMail({
+            name: config.name,
+            to: owner.email,
+            subject: 'An order was created.',
+            html: await render(
+               Mail({
+                  id: order.id,
+                  payable: order.payable.toFixed(2),
+                  orderNum: order.number.toString(),
+               })
+            ),
+         })
+      }
+   } catch (error) {
+      console.error('[ORDER_POST_SIDE_EFFECTS]', error)
+   }
+}
+
+class InsufficientStockError extends Error {
+   items
+
+   constructor(items) {
+      super('Insufficient stock')
+      this.items = items
+   }
+}
+
+class OrderValidationError extends Error {}
