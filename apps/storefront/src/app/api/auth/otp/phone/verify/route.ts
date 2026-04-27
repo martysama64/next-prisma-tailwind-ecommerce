@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
          response.cookies.set({
             name: 'logged-in',
             value: 'true',
+            path: '/',
             maxAge: tokenMaxAge,
          }),
       ])

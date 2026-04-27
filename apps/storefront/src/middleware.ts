@@ -29,11 +29,17 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/login', req.url))
    }
 
-   const response = NextResponse.next()
-
    try {
       const { sub } = await verifyJWT<{ sub: string }>(token)
-      response.headers.set('X-USER-ID', sub)
+
+      const headers = new Headers(req.headers)
+      headers.set('X-USER-ID', sub)
+
+      return NextResponse.next({
+         request: {
+            headers,
+         },
+      })
    } catch (error) {
       if (isTargetingAPI()) {
          return getErrorResponse(401, 'UNAUTHORIZED')
@@ -44,8 +50,6 @@ export async function middleware(req: NextRequest) {
       redirect.cookies.delete('logged-in')
       return redirect
    }
-
-   return response
 }
 
 export const config = {
