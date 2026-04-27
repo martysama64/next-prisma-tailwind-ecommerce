@@ -1,6 +1,15 @@
 import prisma from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
+const wishlistInclude = {
+   wishlist: {
+      include: {
+         brand: true,
+         categories: true,
+      },
+   },
+}
+
 export async function GET(req: Request) {
    try {
       const userId = req.headers.get('X-USER-ID')
@@ -11,7 +20,7 @@ export async function GET(req: Request) {
 
       const user = await prisma.user.findUniqueOrThrow({
          where: { id: userId },
-         include: { wishlist: true },
+         include: wishlistInclude,
       })
 
       return NextResponse.json(user.wishlist)
@@ -31,6 +40,10 @@ export async function POST(req: Request) {
 
       const { productId } = await req.json()
 
+      if (!productId) {
+         return new NextResponse('Product id is required', { status: 400 })
+      }
+
       const user = await prisma.user.update({
          where: { id: userId },
          data: {
@@ -40,12 +53,12 @@ export async function POST(req: Request) {
                },
             },
          },
-         include: { wishlist: true },
+         include: wishlistInclude,
       })
 
       return NextResponse.json(user.wishlist)
    } catch (error) {
-      console.error('WISHLIST_POST]', error)
+      console.error('[WISHLIST_POST]', error)
       return new NextResponse('Internal error', { status: 500 })
    }
 }
@@ -60,6 +73,10 @@ export async function DELETE(req: Request) {
 
       const { productId } = await req.json()
 
+      if (!productId) {
+         return new NextResponse('Product id is required', { status: 400 })
+      }
+
       const user = await prisma.user.update({
          where: { id: userId },
          data: {
@@ -69,12 +86,12 @@ export async function DELETE(req: Request) {
                },
             },
          },
-         include: { wishlist: true },
+         include: wishlistInclude,
       })
 
       return NextResponse.json(user.wishlist)
    } catch (error) {
-      console.error('WISHLIST_POST]', error)
+      console.error('[WISHLIST_DELETE]', error)
       return new NextResponse('Internal error', { status: 500 })
    }
 }

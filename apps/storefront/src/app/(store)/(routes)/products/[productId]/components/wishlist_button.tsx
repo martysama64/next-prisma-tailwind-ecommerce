@@ -7,7 +7,7 @@ import { HeartIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export default function WishlistButton({ product }) {
-   const { authenticated } = useAuthenticated()
+   const { authenticated, loading: loadingAuthentication } = useAuthenticated()
 
    const [wishlist, setWishlist] = useState(null)
    const [fetchingWishlist, setFetchingWishlist] = useState(true)
@@ -15,6 +15,8 @@ export default function WishlistButton({ product }) {
    useEffect(() => {
       async function getWishlist() {
          try {
+            setFetchingWishlist(true)
+
             const response = await fetch(`/api/wishlist`, {
                cache: 'no-store',
                method: 'GET',
@@ -27,17 +29,22 @@ export default function WishlistButton({ product }) {
 
             const json = await response.json()
 
-            setWishlist(json)
+            setWishlist(Array.isArray(json) ? json : [])
          } catch (error) {
             console.error({ error })
+            setWishlist([])
          } finally {
             setFetchingWishlist(false)
          }
       }
 
+      if (loadingAuthentication) return
       if (authenticated) getWishlist()
-      if (!authenticated) setFetchingWishlist(false)
-   }, [authenticated])
+      if (!authenticated) {
+         setWishlist([])
+         setFetchingWishlist(false)
+      }
+   }, [authenticated, loadingAuthentication])
 
    function isProductInWishlist() {
       for (let i = 0; i < wishlist?.length; i++) {
@@ -67,7 +74,7 @@ export default function WishlistButton({ product }) {
 
          const json = await response.json()
 
-         setWishlist(json)
+         setWishlist(Array.isArray(json) ? json : [])
       } catch (error) {
          console.error({ error })
       } finally {
@@ -94,7 +101,7 @@ export default function WishlistButton({ product }) {
 
          const json = await response.json()
 
-         setWishlist(json)
+         setWishlist(Array.isArray(json) ? json : [])
       } catch (error) {
          console.error({ error })
       } finally {
@@ -102,7 +109,7 @@ export default function WishlistButton({ product }) {
       }
    }
 
-   if (!authenticated) {
+   if (loadingAuthentication || !authenticated) {
       return
    }
 

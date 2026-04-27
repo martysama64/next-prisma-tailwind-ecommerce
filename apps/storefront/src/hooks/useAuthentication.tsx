@@ -23,5 +23,8 @@ export function useAuthenticated() {
       }
    }, [])
 
-   return { authenticated: validateBoolean(authenticated, true) }
+   return {
+      authenticated: validateBoolean(authenticated, true),
+      loading: authenticated === null,
+   }
 }
