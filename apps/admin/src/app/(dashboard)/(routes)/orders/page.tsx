@@ -49,6 +49,7 @@ export default async function OrdersPage({ searchParams }) {
          },
       },
       include: {
+         warehouse: true,
          orderItems: {
             include: {
                product: true,
@@ -66,6 +67,7 @@ export default async function OrdersPage({ searchParams }) {
       date: order.createdAt.toUTCString(),
       payable: '$' + order.payable.toString(),
       isPaid: order.isPaid,
+      warehouse: order.warehouse?.name || 'Unassigned',
       createdAt: format(order.createdAt, 'MMMM do, yyyy'),
    }))
 

@@ -3,12 +3,29 @@
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 export function MainNav({
    className,
    ...props
 }: React.HTMLAttributes<HTMLElement>) {
    const pathname = usePathname()
+   const [lowStockCount, setLowStockCount] = useState(0)
+
+   useEffect(() => {
+      async function getLowStockCount() {
+         try {
+            const response = await fetch('/api/inventory?lowStock=true')
+            if (!response.ok) return
+            const json = await response.json()
+            setLowStockCount(json.length)
+         } catch (error) {
+            setLowStockCount(0)
+         }
+      }
+
+      getLowStockCount()
+   }, [])
 
    const routes = [
       {
@@ -25,6 +42,16 @@ export function MainNav({
          href: `/products`,
          label: 'Products',
          active: pathname.includes(`/products`),
+      },
+      {
+         href: `/warehouses`,
+         label: 'Warehouses',
+         active: pathname.includes(`/warehouses`),
+      },
+      {
+         href: `/inventory`,
+         label: lowStockCount ? `Inventory (${lowStockCount})` : 'Inventory',
+         active: pathname.includes(`/inventory`),
       },
       {
          href: `/orders`,

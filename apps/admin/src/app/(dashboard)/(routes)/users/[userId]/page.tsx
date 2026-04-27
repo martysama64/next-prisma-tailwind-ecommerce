@@ -23,6 +23,7 @@ const UserPage = async ({ params }: { params: { userId: string } }) => {
          payments: true,
          orders: {
             include: {
+               warehouse: true,
                orderItems: {
                   include: {
                      product: true,
@@ -42,6 +43,7 @@ const UserPage = async ({ params }: { params: { userId: string } }) => {
          date: order.createdAt.toUTCString(),
          payable: '$' + order.payable.toString(),
          isPaid: order.isPaid,
+         warehouse: order.warehouse?.name || 'Unassigned',
          createdAt: format(order.createdAt, 'MMMM do, yyyy'),
       }))
 
