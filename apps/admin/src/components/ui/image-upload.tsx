@@ -30,8 +30,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
    }
 
    const isCloudinaryConfigured = Boolean(
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME &&
+         process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
    )
+   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
    if (!isMounted) {
       return null
@@ -73,10 +75,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                className="flex gap-2"
             >
                <ImagePlus className="h-4" />
-               <p>Configure Cloudinary to upload images</p>
+               <p>Configure Cloudinary upload settings</p>
             </Button>
          ) : (
-            <CldUploadWidget onUpload={onUpload} uploadPreset="t4drjppf">
+            <CldUploadWidget onUpload={onUpload} uploadPreset={uploadPreset}>
                {({ open }) => {
                   const onClick = () => {
                      open()
