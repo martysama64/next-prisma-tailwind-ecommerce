@@ -29,6 +29,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       onChange(result.info.secure_url)
    }
 
+   const isCloudinaryConfigured = Boolean(
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+   )
+
    if (!isMounted) {
       return null
    }
@@ -61,26 +65,38 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                </div>
             ))}
          </div>
-         <CldUploadWidget onUpload={onUpload} uploadPreset="t4drjppf">
-            {({ open }) => {
-               const onClick = () => {
-                  open()
-               }
+         {!isCloudinaryConfigured ? (
+            <Button
+               type="button"
+               disabled
+               variant="secondary"
+               className="flex gap-2"
+            >
+               <ImagePlus className="h-4" />
+               <p>Configure Cloudinary to upload images</p>
+            </Button>
+         ) : (
+            <CldUploadWidget onUpload={onUpload} uploadPreset="t4drjppf">
+               {({ open }) => {
+                  const onClick = () => {
+                     open()
+                  }
 
-               return (
-                  <Button
-                     type="button"
-                     disabled={disabled}
-                     variant="secondary"
-                     onClick={onClick}
-                     className="flex gap-2"
-                  >
-                     <ImagePlus className="h-4" />
-                     <p>Upload an Image</p>
-                  </Button>
-               )
-            }}
-         </CldUploadWidget>
+                  return (
+                     <Button
+                        type="button"
+                        disabled={disabled}
+                        variant="secondary"
+                        onClick={onClick}
+                        className="flex gap-2"
+                     >
+                        <ImagePlus className="h-4" />
+                        <p>Upload an Image</p>
+                     </Button>
+                  )
+               }}
+            </CldUploadWidget>
+         )}
       </div>
    )
 }
