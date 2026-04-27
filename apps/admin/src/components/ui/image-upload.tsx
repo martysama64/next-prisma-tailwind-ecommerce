@@ -26,7 +26,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
    }, [])
 
    const onUpload = (result: any) => {
-      onChange(result.info.secure_url)
+      const url = result?.info?.secure_url
+
+      if (typeof url === 'string') {
+         onChange(url)
+      }
    }
 
    const isCloudinaryConfigured = Boolean(
@@ -78,7 +82,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                <p>Configure Cloudinary upload settings</p>
             </Button>
          ) : (
-            <CldUploadWidget onUpload={onUpload} uploadPreset={uploadPreset}>
+            <CldUploadWidget onSuccess={onUpload} uploadPreset={uploadPreset}>
                {({ open }) => {
                   const onClick = () => {
                      open()
