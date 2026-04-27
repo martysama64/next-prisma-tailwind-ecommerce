@@ -7,6 +7,7 @@ import {
    CommandGroup,
    CommandInput,
    CommandItem,
+   CommandList,
 } from '@/components/ui/command'
 import { Label } from '@/components/ui/label'
 import {
@@ -77,6 +78,7 @@ export function SortBy({ initialData }) {
 }
 
 export function CategoriesCombobox({ categories, initialCategory }) {
+   const categoryOptions = Array.isArray(categories) ? categories : []
    const router = useRouter()
    const pathname = usePathname()
    const searchParams = useSearchParams()
@@ -85,13 +87,13 @@ export function CategoriesCombobox({ categories, initialCategory }) {
    const [value, setValue] = React.useState('')
 
    function getCategoryTitle() {
-      for (const category of categories) {
+      for (const category of categoryOptions) {
          if (slugify(category.title) === slugify(value)) return category.title
       }
    }
 
    useEffect(() => {
-      setValue(initialCategory)
+      setValue(initialCategory ?? '')
    }, [initialCategory])
 
    return (
@@ -108,57 +110,59 @@ export function CategoriesCombobox({ categories, initialCategory }) {
             </Button>
          </PopoverTrigger>
          <PopoverContent className="w-full p-0">
-            <Command>
-               <CommandInput placeholder="Search category..." />
-               <CommandEmpty>No category found.</CommandEmpty>
-               <CommandGroup>
-                  {categories.map((category) => (
-                     <CommandItem
-                        key={category.title}
-                        onSelect={(currentValue) => {
-                           const current = new URLSearchParams(
-                              Array.from(searchParams.entries())
-                           )
+             <Command>
+                <CommandInput placeholder="Search category..." />
+                <CommandList>
+                   <CommandEmpty>No category found.</CommandEmpty>
+                   <CommandGroup>
+                      {categoryOptions.map((category) => (
+                         <CommandItem
+                            key={category.id ?? category.title}
+                            value={category.title}
+                            onSelect={(currentValue) => {
+                               const current = new URLSearchParams(
+                                  Array.from(searchParams.entries())
+                               )
 
-                           if (currentValue === value) {
-                              current.delete('category')
-                              setValue('')
-                           } else {
-                              current.set('category', currentValue)
-                              setValue(currentValue)
-                           }
+                               if (currentValue === value) {
+                                  current.delete('category')
+                                  setValue('')
+                               } else {
+                                  current.set('category', currentValue)
+                                  setValue(currentValue)
+                               }
 
-                           // cast to string
-                           const search = current.toString()
-                           // or const query = `${'?'.repeat(search.length && 1)}${search}`;
-                           const query = search ? `?${search}` : ''
+                               const search = current.toString()
+                               const query = search ? `?${search}` : ''
 
-                           router.replace(`${pathname}${query}`, {
-                              scroll: false,
-                           })
+                               router.replace(`${pathname}${query}`, {
+                                  scroll: false,
+                               })
 
-                           setOpen(false)
-                        }}
-                     >
-                        <Check
-                           className={cn(
-                              'mr-2 h-4 w-4',
-                              value === category.title
-                                 ? 'opacity-100'
-                                 : 'opacity-0'
-                           )}
-                        />
-                        {category.title}
-                     </CommandItem>
-                  ))}
-               </CommandGroup>
-            </Command>
+                               setOpen(false)
+                            }}
+                         >
+                            <Check
+                               className={cn(
+                                  'mr-2 h-4 w-4',
+                                  value === category.title
+                                     ? 'opacity-100'
+                                     : 'opacity-0'
+                               )}
+                            />
+                            {category.title}
+                         </CommandItem>
+                      ))}
+                   </CommandGroup>
+                </CommandList>
+             </Command>
          </PopoverContent>
       </Popover>
    )
 }
 
 export function BrandCombobox({ brands, initialBrand }) {
+   const brandOptions = Array.isArray(brands) ? brands : []
    const router = useRouter()
    const pathname = usePathname()
    const searchParams = useSearchParams()
@@ -167,13 +171,13 @@ export function BrandCombobox({ brands, initialBrand }) {
    const [value, setValue] = React.useState('')
 
    function getBrandTitle() {
-      for (const brand of brands) {
+      for (const brand of brandOptions) {
          if (slugify(brand.title) === slugify(value)) return brand.title
       }
    }
 
    useEffect(() => {
-      setValue(initialBrand)
+      setValue(initialBrand ?? '')
    }, [initialBrand])
 
    return (
@@ -190,51 +194,52 @@ export function BrandCombobox({ brands, initialBrand }) {
             </Button>
          </PopoverTrigger>
          <PopoverContent className="w-full p-0">
-            <Command>
-               <CommandInput placeholder="Search brand..." />
-               <CommandEmpty>No brand found.</CommandEmpty>
-               <CommandGroup>
-                  {brands.map((brand) => (
-                     <CommandItem
-                        key={brand.title}
-                        onSelect={(currentValue) => {
-                           const current = new URLSearchParams(
-                              Array.from(searchParams.entries())
-                           )
+             <Command>
+                <CommandInput placeholder="Search brand..." />
+                <CommandList>
+                   <CommandEmpty>No brand found.</CommandEmpty>
+                   <CommandGroup>
+                      {brandOptions.map((brand) => (
+                         <CommandItem
+                            key={brand.id ?? brand.title}
+                            value={brand.title}
+                            onSelect={(currentValue) => {
+                               const current = new URLSearchParams(
+                                  Array.from(searchParams.entries())
+                               )
 
-                           if (currentValue === value) {
-                              current.delete('brand')
-                              setValue('')
-                           } else {
-                              current.set('brand', currentValue)
-                              setValue(currentValue)
-                           }
+                               if (currentValue === value) {
+                                  current.delete('brand')
+                                  setValue('')
+                               } else {
+                                  current.set('brand', currentValue)
+                                  setValue(currentValue)
+                               }
 
-                           // cast to string
-                           const search = current.toString()
-                           // or const query = `${'?'.repeat(search.length && 1)}${search}`;
-                           const query = search ? `?${search}` : ''
+                               const search = current.toString()
+                               const query = search ? `?${search}` : ''
 
-                           router.replace(`${pathname}${query}`, {
-                              scroll: false,
-                           })
+                               router.replace(`${pathname}${query}`, {
+                                  scroll: false,
+                               })
 
-                           setOpen(false)
-                        }}
-                     >
-                        <Check
-                           className={cn(
-                              'mr-2 h-4',
-                              value === brand.title
-                                 ? 'opacity-100'
-                                 : 'opacity-0'
-                           )}
-                        />
-                        {brand.title}
-                     </CommandItem>
-                  ))}
-               </CommandGroup>
-            </Command>
+                               setOpen(false)
+                            }}
+                         >
+                            <Check
+                               className={cn(
+                                  'mr-2 h-4',
+                                  value === brand.title
+                                     ? 'opacity-100'
+                                     : 'opacity-0'
+                               )}
+                            />
+                            {brand.title}
+                         </CommandItem>
+                      ))}
+                   </CommandGroup>
+                </CommandList>
+             </Command>
          </PopoverContent>
       </Popover>
    )

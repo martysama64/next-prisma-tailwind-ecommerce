@@ -32,10 +32,6 @@ export const docsConfig: DocsConfig = {
          href: '/profile/orders',
       },
       {
-         title: 'Payments',
-         href: '/profile/payments',
-      },
-      {
          title: 'Contact',
          href: '/contact',
       },

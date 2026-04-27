@@ -12,7 +12,6 @@ import {
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-   CreditCardIcon,
    HeartIcon,
    ListOrderedIcon,
    LogOutIcon,
@@ -67,13 +66,6 @@ export function UserNav() {
                      Orders
                   </DropdownMenuItem>
                </Link>
-               <Link href="/profile/payments">
-                  <DropdownMenuItem className="flex gap-2">
-                     <CreditCardIcon className="h-4" />
-                     Payments
-                  </DropdownMenuItem>
-               </Link>
-               <DropdownMenuSeparator />
                <Link href="/cart">
                   <DropdownMenuItem className="flex gap-2">
                      <ShoppingBasketIcon className="h-4" /> Cart
