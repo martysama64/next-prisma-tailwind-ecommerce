@@ -31,13 +31,14 @@ import * as z from 'zod'
 
 const formSchema = z.object({
    title: z.string().min(2),
-   description: z.string().min(1),
+   description: z.string().optional(),
+   bannerId: z.string().min(1),
 })
 
 type CategoryFormValues = z.infer<typeof formSchema>
 
 interface CategoryFormProps {
-   initialData: Category | null
+   initialData: (Category & { banners?: Banner[] }) | null
    banners: Banner[]
 }
 
@@ -58,33 +59,42 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
 
    const form = useForm<CategoryFormValues>({
       resolver: zodResolver(formSchema),
-      defaultValues: initialData || {
-         title: '',
-         description: '',
-      },
+      defaultValues: initialData
+         ? {
+              title: initialData.title,
+              description: initialData.description || '',
+              bannerId: initialData.banners?.[0]?.id || '',
+           }
+         : {
+              title: '',
+              description: '',
+              bannerId: '',
+           },
    })
 
    const onSubmit = async (data: CategoryFormValues) => {
       try {
          setLoading(true)
-         if (initialData) {
-            await fetch(`/api/categories/${params.categoryId}`, {
-               method: 'PATCH',
-               body: JSON.stringify(data),
-               cache: 'no-store',
-            })
-         } else {
-            await fetch(`/api/categories`, {
-               method: 'POST',
-               body: JSON.stringify(data),
-               cache: 'no-store',
-            })
+         const response = initialData
+            ? await fetch(`/api/categories/${params.categoryId}`, {
+                 method: 'PATCH',
+                 body: JSON.stringify(data),
+                 cache: 'no-store',
+              })
+            : await fetch(`/api/categories`, {
+                 method: 'POST',
+                 body: JSON.stringify(data),
+                 cache: 'no-store',
+              })
+
+         if (!response.ok) {
+            throw new Error(await response.text())
          }
          router.refresh()
          router.push(`/categories`)
          toast.success(toastMessage)
       } catch (error: any) {
-         toast.error('Something went wrong.')
+         toast.error(error?.message || 'Something went wrong.')
       } finally {
          setLoading(false)
       }
@@ -94,17 +104,22 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
       try {
          setLoading(true)
 
-         await fetch(`/api/categories/${params.categoryId}`, {
+         const response = await fetch(`/api/categories/${params.categoryId}`, {
             method: 'DELETE',
             cache: 'no-store',
          })
+
+         if (!response.ok) {
+            throw new Error(await response.text())
+         }
 
          router.refresh()
          router.push(`/categories`)
          toast.success('Category deleted.')
       } catch (error: any) {
          toast.error(
-            'Make sure you removed all products using this category first.'
+            error?.message ||
+               'Make sure you removed all products using this category first.'
          )
       } finally {
          setLoading(false)
@@ -159,7 +174,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
                   />
                   <FormField
                      control={form.control}
-                     name="description"
+                     name="bannerId"
                      render={({ field }) => (
                         <FormItem>
                            <FormLabel>Banner</FormLabel>

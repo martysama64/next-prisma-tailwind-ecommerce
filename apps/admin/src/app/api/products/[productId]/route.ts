@@ -1,5 +1,20 @@
 import prisma from '@/lib/prisma'
+import { getErrorResponse } from '@/lib/utils'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const productPatchSchema = z.object({
+   title: z.string().min(1),
+   images: z.array(z.string()).default([]),
+   price: z.coerce.number().min(1),
+   discount: z.coerce.number().min(0),
+   stock: z.coerce.number().int().min(0),
+   categoryId: z.string().min(1),
+   isFeatured: z.boolean().optional().default(false),
+   isAvailable: z.boolean().optional().default(false),
+   trackInventory: z.boolean().optional().default(true),
+   allowBackorders: z.boolean().optional().default(false),
+})
 
 export async function GET(
    req: Request,
@@ -68,26 +83,34 @@ export async function PATCH(
          return new NextResponse('Unauthorized', { status: 401 })
       }
 
-      const {
-         data: { title, price, discount, stock, isFeatured, isAvailable },
-      } = await req.json()
+      const data = productPatchSchema.parse(await req.json())
 
       const product = await prisma.product.update({
          where: {
             id: params.productId,
          },
          data: {
-            title,
-            price,
-            discount,
-            stock,
-            isFeatured,
-            isAvailable,
+            title: data.title,
+            images: data.images,
+            price: data.price,
+            discount: data.discount,
+            stock: data.stock,
+            isFeatured: data.isFeatured,
+            isAvailable: data.isAvailable,
+            trackInventory: data.trackInventory,
+            allowBackorders: data.allowBackorders,
+            categories: {
+               set: [{ id: data.categoryId }],
+            },
          },
       })
 
       return NextResponse.json(product)
    } catch (error) {
+      if (error instanceof z.ZodError) {
+         return getErrorResponse(400, 'Invalid product data', error)
+      }
+
       console.error('[PRODUCT_PATCH]', error)
       return new NextResponse('Internal error', { status: 500 })
    }

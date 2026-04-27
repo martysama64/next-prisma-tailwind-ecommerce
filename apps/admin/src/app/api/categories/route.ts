@@ -1,5 +1,13 @@
 import prisma from '@/lib/prisma'
+import { getErrorResponse } from '@/lib/utils'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const categorySchema = z.object({
+   title: z.string().min(1),
+   description: z.string().optional(),
+   bannerId: z.string().min(1),
+})
 
 export async function POST(req: Request) {
    try {
@@ -9,17 +17,9 @@ export async function POST(req: Request) {
          return new NextResponse('Unauthorized', { status: 401 })
       }
 
-      const body = await req.json()
-
-      const { title, description, bannerId } = body
-
-      if (!title) {
-         return new NextResponse('Name is required', { status: 400 })
-      }
-
-      if (!bannerId) {
-         return new NextResponse('Banner ID is required', { status: 400 })
-      }
+      const { title, description, bannerId } = categorySchema.parse(
+         await req.json()
+      )
 
       // Create a new category
       const category = await prisma.category.create({
@@ -36,6 +36,10 @@ export async function POST(req: Request) {
 
       return NextResponse.json(category)
    } catch (error) {
+      if (error instanceof z.ZodError) {
+         return getErrorResponse(400, 'Invalid category data', error)
+      }
+
       console.error('[CATEGORIES_POST]', error)
       return new NextResponse('Internal error', { status: 500 })
    }

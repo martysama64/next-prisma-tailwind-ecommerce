@@ -1,5 +1,13 @@
 import prisma from '@/lib/prisma'
+import { getErrorResponse } from '@/lib/utils'
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+
+const categorySchema = z.object({
+   title: z.string().min(1),
+   description: z.string().optional(),
+   bannerId: z.string().min(1),
+})
 
 export async function GET(
    req: Request,
@@ -68,17 +76,9 @@ export async function PATCH(
          return new NextResponse('Unauthorized', { status: 401 })
       }
 
-      const body = await req.json()
-
-      const { title, description, bannerId } = body
-
-      if (!bannerId) {
-         return new NextResponse('Banner ID is required', { status: 400 })
-      }
-
-      if (!title) {
-         return new NextResponse('Name is required', { status: 400 })
-      }
+      const { title, description, bannerId } = categorySchema.parse(
+         await req.json()
+      )
 
       if (!params.categoryId) {
          return new NextResponse('Category id is required', { status: 400 })
@@ -92,7 +92,7 @@ export async function PATCH(
             title,
             description,
             banners: {
-               connect: {
+               set: {
                   id: bannerId,
                },
             },
@@ -101,6 +101,10 @@ export async function PATCH(
 
       return NextResponse.json(updatedCategory)
    } catch (error) {
+      if (error instanceof z.ZodError) {
+         return getErrorResponse(400, 'Invalid category data', error)
+      }
+
       console.error('[CATEGORY_PATCH]', error)
       return new NextResponse('Internal error', { status: 500 })
    }
