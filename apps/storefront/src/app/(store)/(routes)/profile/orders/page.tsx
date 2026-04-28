@@ -64,6 +64,7 @@ function OrderSection({ orders }) {
       date: order.createdAt.toString(),
       payable: '$' + order.payable.toString(),
       isPaid: order.isPaid,
+      status: order.status,
    }))
 
    return <OrdersTable data={formattedOrders} />

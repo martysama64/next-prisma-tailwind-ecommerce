@@ -38,8 +38,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+   let userId: string | null = null
+
    try {
-      const userId = req.headers.get('X-USER-ID')
+      userId = req.headers.get('X-USER-ID')
 
       if (!userId) {
          return new NextResponse('Unauthorized', { status: 401 })
@@ -191,9 +193,64 @@ export async function POST(req: Request) {
          )
       }
 
+      if (
+         error instanceof Error &&
+         (error.message === 'No warehouse can fulfill the cart' ||
+            error.message === 'No active warehouse is available')
+      ) {
+         const items = userId
+            ? await getCurrentCartInsufficientStockItems(userId)
+            : []
+
+         return NextResponse.json(
+            { error: 'INSUFFICIENT_STOCK', items },
+            { status: 409 }
+         )
+      }
+
       console.error('[ORDER_POST]', error)
       return new NextResponse('Internal error', { status: 500 })
    }
+}
+
+async function getCurrentCartInsufficientStockItems(userId: string) {
+   const cart = await prisma.cart.findUnique({
+      where: { userId },
+      include: {
+         items: {
+            include: {
+               product: {
+                  include: {
+                     inventories: true,
+                  },
+               },
+            },
+         },
+      },
+   })
+
+   if (!cart) return []
+
+   return cart.items
+      .map((item) => {
+         if (!item.product.trackInventory || item.product.allowBackorders) {
+            return null
+         }
+
+         const available = item.product.inventories.reduce(
+            (total, inventory) => total + getAvailableQuantity(inventory),
+            0
+         )
+
+         if (available >= item.count) return null
+
+         return {
+            productId: item.productId,
+            requested: item.count,
+            available,
+         }
+      })
+      .filter(Boolean)
 }
 
 function calculateCosts({ cart }) {

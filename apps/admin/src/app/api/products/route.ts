@@ -10,6 +10,7 @@ const productSchema = z.object({
    discount: z.coerce.number().min(0),
    stock: z.coerce.number().int().min(0),
    categoryId: z.string().min(1),
+   brandId: z.string().min(1),
    warehouseId: z.string().min(1).optional().or(z.literal('')),
    isFeatured: z.boolean().optional().default(false),
    isAvailable: z.boolean().optional().default(false),
@@ -44,10 +45,7 @@ export async function POST(req: Request) {
                   connect: { id: data.categoryId },
                },
                brand: {
-                  connectOrCreate: {
-                     where: { title: 'Default Brand' },
-                     create: { title: 'Default Brand' },
-                  },
+                  connect: { id: data.brandId },
                },
             },
          })

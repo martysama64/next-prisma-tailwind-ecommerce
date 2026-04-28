@@ -3,8 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/data-table'
 import { ColumnDef } from '@tanstack/react-table'
-import { CheckIcon, XIcon } from 'lucide-react'
-import { EditIcon as Icon } from 'lucide-react'
+import { CheckIcon, EyeIcon, XIcon } from 'lucide-react'
 import Link from 'next/link'
 
 export type OrderColumn = {
@@ -13,6 +12,18 @@ export type OrderColumn = {
    payable: string
    number: string
    createdAt: string
+   status: string
+}
+
+async function cancelOrder(orderId: string) {
+   const response = await fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'Cancelled' }),
+   })
+
+   if (response.ok) window.location.reload()
 }
 
 export const columns: ColumnDef<OrderColumn>[] = [
@@ -36,14 +47,33 @@ export const columns: ColumnDef<OrderColumn>[] = [
       },
    },
    {
+      accessorKey: 'status',
+      header: 'Status',
+   },
+   {
       id: 'actions',
-      cell: ({ row }) => (
-         <Link href={`/profile/orders/${row.original.id}`}>
-            <Button size="icon" variant="outline">
-               <Icon className="h-4" />
-            </Button>
-         </Link>
-      ),
+      cell: ({ row }) => {
+         const canCancel = row.original.status === 'Processing'
+
+         return (
+            <div className="flex gap-2">
+               <Link href={`/profile/orders/${row.original.id}`}>
+                  <Button size="sm" variant="outline">
+                     <EyeIcon className="mr-2 h-4" /> View
+                  </Button>
+               </Link>
+               {canCancel && (
+                  <Button
+                     size="sm"
+                     variant="destructive"
+                     onClick={() => cancelOrder(row.original.id)}
+                  >
+                     Cancel
+                  </Button>
+               )}
+            </div>
+         )
+      },
    },
 ]
 

@@ -10,6 +10,7 @@ const productPatchSchema = z.object({
    discount: z.coerce.number().min(0),
    stock: z.coerce.number().int().min(0),
    categoryId: z.string().min(1),
+   brandId: z.string().min(1),
    isFeatured: z.boolean().optional().default(false),
    isAvailable: z.boolean().optional().default(false),
    trackInventory: z.boolean().optional().default(true),
@@ -101,6 +102,9 @@ export async function PATCH(
             allowBackorders: data.allowBackorders,
             categories: {
                set: [{ id: data.categoryId }],
+            },
+            brand: {
+               connect: { id: data.brandId },
             },
          },
       })

@@ -18,6 +18,7 @@ export default async function ProductPage({
    })
 
    const categories = await prisma.category.findMany()
+   const brands = await prisma.brand.findMany({ orderBy: { title: 'asc' } })
    const warehouses = await prisma.warehouse.findMany({
       where: { isActive: true },
       orderBy: [{ priority: 'asc' }, { name: 'asc' }],
@@ -28,6 +29,7 @@ export default async function ProductPage({
          <div className="flex-1 space-y-4 pt-6 pb-12">
             <ProductForm
                categories={categories}
+               brands={brands}
                warehouses={warehouses}
                initialData={product}
             />

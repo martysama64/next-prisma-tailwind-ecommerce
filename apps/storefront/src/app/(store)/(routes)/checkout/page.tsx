@@ -226,6 +226,11 @@ export default function CheckoutPage() {
                      />
                   </section>
 
+                  <p className="rounded-md border p-3 text-sm text-muted-foreground">
+                     Payment is not implemented in this demo; order creation
+                     reserves stock, shipping consumes stock.
+                  </p>
+
                   <section className="space-y-2">
                      <h2 className="font-medium">Items</h2>
                      {items.map((item) => (
