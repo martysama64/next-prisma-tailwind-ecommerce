@@ -25,7 +25,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import type { ProductWithIncludes } from '@/types/prisma'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Category } from '@prisma/client'
+import { Category, Warehouse } from '@prisma/client'
 import { Trash } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -40,6 +40,7 @@ const formSchema = z.object({
    discount: z.coerce.number().min(0),
    stock: z.coerce.number().min(0),
    categoryId: z.string().min(1),
+   warehouseId: z.string().optional(),
    isFeatured: z.boolean().default(false).optional(),
    isAvailable: z.boolean().default(false).optional(),
    trackInventory: z.boolean().default(true).optional(),
@@ -51,11 +52,13 @@ type ProductFormValues = z.infer<typeof formSchema>
 interface ProductFormProps {
    initialData: ProductWithIncludes | null
    categories: Category[]
+   warehouses: Warehouse[]
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({
    initialData,
    categories,
+   warehouses,
 }) => {
    const params = useParams()
    const router = useRouter()
@@ -73,8 +76,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
            ...initialData,
            price: parseFloat(String(initialData?.price.toFixed(2))),
            discount: parseFloat(String(initialData?.discount.toFixed(2))),
-           categoryId: initialData?.categories?.[0]?.id || '',
-        }
+            categoryId: initialData?.categories?.[0]?.id || '',
+            warehouseId: '',
+         }
       : {
            title: '',
            description: '',
@@ -82,7 +86,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
            price: 1,
            discount: 0,
            stock: 0,
-           categoryId: '',
+            categoryId: '',
+            warehouseId: '',
            isFeatured: false,
            isAvailable: false,
            trackInventory: true,
@@ -308,6 +313,43 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         </FormItem>
                      )}
                   />
+                  {!initialData && (
+                     <FormField
+                        control={form.control}
+                        name="warehouseId"
+                        render={({ field }) => (
+                           <FormItem>
+                              <FormLabel>Initial Warehouse</FormLabel>
+                              <Select
+                                 disabled={loading}
+                                 onValueChange={field.onChange}
+                                 value={field.value}
+                                 defaultValue={field.value}
+                              >
+                                 <FormControl>
+                                    <SelectTrigger>
+                                       <SelectValue placeholder="Select a warehouse" />
+                                    </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                    {warehouses.map((warehouse) => (
+                                       <SelectItem
+                                          key={warehouse.id}
+                                          value={warehouse.id}
+                                       >
+                                          {warehouse.name}
+                                       </SelectItem>
+                                    ))}
+                                 </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                 Creates the initial inventory row for this product.
+                              </FormDescription>
+                              <FormMessage />
+                           </FormItem>
+                        )}
+                     />
+                  )}
                   <FormField
                      control={form.control}
                      name="isFeatured"

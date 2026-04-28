@@ -130,6 +130,7 @@ export default function CheckoutPage() {
 
    const items = cart?.items ?? []
    const totals = calculateTotals(items)
+   const availabilityWarnings = getAvailabilityWarnings(items)
 
    if (loading || loadingAuthentication) {
       return (
@@ -238,6 +239,17 @@ export default function CheckoutPage() {
                      ))}
                   </section>
 
+                  {availabilityWarnings.length > 0 && (
+                     <div className="space-y-2 rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                        <p className="font-medium">Availability warning</p>
+                        {availabilityWarnings.map((warning) => (
+                           <p key={warning.productId}>
+                              {warning.title}: requested {warning.requested}, available {warning.available}.
+                           </p>
+                        ))}
+                     </div>
+                  )}
+
                   {error && <p className="text-sm text-red-700">{error}</p>}
 
                   {stockErrors.length > 0 && (
@@ -319,4 +331,30 @@ function calculateTotals(items) {
 function getProductTitle(items, productId) {
    const item = items.find((item) => item.productId === productId)
    return item?.product?.title ?? 'Product'
+}
+
+function getAvailabilityWarnings(items) {
+   return items
+      .map((item) => {
+         const product = item.product
+         if (!product?.trackInventory || product.allowBackorders) return null
+
+         const available = Array.isArray(product.inventories)
+            ? product.inventories.reduce(
+                 (total, inventory) =>
+                    total + inventory.quantity - inventory.reservedQuantity,
+                 0
+              )
+            : 0
+
+         if (available >= item.count) return null
+
+         return {
+            productId: item.productId,
+            title: product.title,
+            requested: item.count,
+            available,
+         }
+      })
+      .filter(Boolean)
 }

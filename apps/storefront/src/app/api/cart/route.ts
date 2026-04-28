@@ -18,6 +18,11 @@ export async function GET(req: Request) {
                      include: {
                         brand: true,
                         categories: true,
+                        inventories: {
+                           include: {
+                              warehouse: true,
+                           },
+                        },
                      },
                   },
                },
@@ -97,6 +102,11 @@ export async function POST(req: Request) {
                      include: {
                         brand: true,
                         categories: true,
+                        inventories: {
+                           include: {
+                              warehouse: true,
+                           },
+                        },
                      },
                   },
                },

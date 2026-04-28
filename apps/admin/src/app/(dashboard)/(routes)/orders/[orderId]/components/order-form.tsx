@@ -12,6 +12,13 @@ import {
    FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from '@/components/ui/select'
 import type { OrderWithIncludes } from '@/types/prisma'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useParams, useRouter } from 'next/navigation'
@@ -22,8 +29,8 @@ import * as z from 'zod'
 
 const formSchema = z.object({
    status: z.string().min(1),
-   shipping: z.coerce.number().min(1),
-   payable: z.coerce.number().min(1),
+   shipping: z.coerce.number().min(0),
+   payable: z.coerce.number().min(0),
    discount: z.coerce.number().min(0),
    isPaid: z.boolean().default(false).optional(),
    isCompleted: z.boolean().default(false).optional(),
@@ -66,25 +73,33 @@ export const OrderForm: React.FC<ProductFormProps> = ({ initialData }) => {
       try {
          setLoading(true)
 
-         if (initialData) {
-            await fetch(`/api/products/${params.productId}`, {
-               method: 'PATCH',
-               body: JSON.stringify(data),
-               cache: 'no-store',
-            })
-         } else {
-            await fetch(`/api/products`, {
-               method: 'POST',
-               body: JSON.stringify(data),
-               cache: 'no-store',
-            })
+         const response = initialData
+            ? await fetch(`/api/orders/${params.orderId}`, {
+                method: 'PATCH',
+                body: JSON.stringify(data),
+                cache: 'no-store',
+                headers: { 'Content-Type': 'application/json' },
+             })
+            : await fetch(`/api/orders`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+                cache: 'no-store',
+                headers: { 'Content-Type': 'application/json' },
+             })
+
+         if (!response.ok) {
+            const message =
+               response.status === 409
+                  ? 'INSUFFICIENT_STOCK'
+                  : await response.text()
+            throw new Error(message)
          }
 
          router.refresh()
-         router.push(`/products`)
+         router.push(`/orders/${params.orderId}`)
          toast.success(toastMessage)
       } catch (error: any) {
-         toast.error('Something went wrong.')
+         toast.error(error?.message || 'Something went wrong.')
       } finally {
          setLoading(false)
       }
@@ -96,6 +111,34 @@ export const OrderForm: React.FC<ProductFormProps> = ({ initialData }) => {
             onSubmit={form.handleSubmit(onSubmit)}
             className="block space-y-2 w-full"
          >
+            <FormField
+               control={form.control}
+               name="status"
+               render={({ field }) => (
+                  <FormItem>
+                     <FormLabel>Status</FormLabel>
+                     <Select
+                        disabled={loading}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        defaultValue={field.value}
+                     >
+                        <FormControl>
+                           <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                           </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                           <SelectItem value="Processing">Processing</SelectItem>
+                           <SelectItem value="Shipped">Shipped</SelectItem>
+                           <SelectItem value="Delivered">Delivered</SelectItem>
+                           <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                     </Select>
+                     <FormMessage />
+                  </FormItem>
+               )}
+            />
             <FormField
                control={form.control}
                name="shipping"

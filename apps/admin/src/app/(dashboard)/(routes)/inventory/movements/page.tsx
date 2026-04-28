@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import {
    Table,
    TableBody,
@@ -36,9 +37,12 @@ export default function InventoryMovementsPage() {
 
    return (
       <div className="space-y-4 py-6">
-         <div>
-            <h1 className="text-2xl font-semibold">Inventory Movements</h1>
-            <p className="text-sm text-muted-foreground">Audit trail for stock changes.</p>
+         <div className="flex items-center justify-between">
+            <div>
+               <h1 className="text-2xl font-semibold">Inventory Movements</h1>
+               <p className="text-sm text-muted-foreground">Audit trail for stock changes.</p>
+            </div>
+            <Button variant="outline" onClick={() => exportMovementsCsv(movements)}>Export CSV</Button>
          </div>
          {error && <p className="text-sm text-red-600">{error}</p>}
          <Table>
@@ -71,4 +75,29 @@ export default function InventoryMovementsPage() {
          </Table>
       </div>
    )
+}
+
+function exportMovementsCsv(rows) {
+   downloadCsv('inventory-movements.csv', [
+      ['type', 'productId', 'quantity', 'reason', 'createdAt'],
+      ...rows.map((row) => [
+         row.type,
+         row.productId ?? '',
+         row.quantity,
+         row.reason ?? '',
+         row.createdAt,
+      ]),
+   ])
+}
+
+function downloadCsv(filename, rows) {
+   const csv = rows
+      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','))
+      .join('\n')
+   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+   const link = document.createElement('a')
+   link.href = url
+   link.download = filename
+   link.click()
+   URL.revokeObjectURL(url)
 }

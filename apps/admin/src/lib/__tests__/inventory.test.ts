@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+   consumeReservationsForOrder,
    getAvailableQuantity,
    getInventoryAvailabilityStatus,
    validateTransferItems,
@@ -76,4 +77,67 @@ describe('inventory helpers', () => {
          ])
       ).toThrow('Duplicate transfer item productId')
    })
+
+   test('consumes active reservations when an order is shipped', async () => {
+      const calls: any[] = []
+      const tx = createConsumeReservationTx({ rawResult: 1, calls })
+
+      const count = await consumeReservationsForOrder(tx as any, 'order-1')
+
+      expect(count).toBe(1)
+      expect(calls).toContain('executeRaw')
+      expect(calls).toContain('reservationConsumed')
+      expect(calls).toContain('movementCreated')
+   })
+
+   test('rejects shipment when reserved stock cannot be consumed', async () => {
+      const tx = createConsumeReservationTx({ rawResult: 0, calls: [] })
+
+      await expect(
+         consumeReservationsForOrder(tx as any, 'order-1')
+      ).rejects.toThrow('Cannot consume reservation reservation-1')
+   })
 })
+
+function createConsumeReservationTx({ rawResult, calls }) {
+   return {
+      inventoryReservation: {
+         findMany: async () => [
+            {
+               id: 'reservation-1',
+               inventoryId: 'inventory-1',
+               warehouseId: 'warehouse-1',
+               productId: 'product-1',
+               quantity: 2,
+               product: { allowBackorders: false },
+            },
+         ],
+         update: async () => {
+            calls.push('reservationConsumed')
+         },
+      },
+      inventory: {
+         findUnique: async () => ({
+            id: 'inventory-1',
+            quantity: 10,
+            reservedQuantity: 0,
+            reorderPoint: 0,
+            reorderQuantity: 0,
+            product: { title: 'Product' },
+            warehouse: { name: 'Warehouse' },
+         }),
+      },
+      inventoryMovement: {
+         create: async () => {
+            calls.push('movementCreated')
+         },
+      },
+      owner: {
+         findMany: async () => [],
+      },
+      $executeRaw: async () => {
+         calls.push('executeRaw')
+         return rawResult
+      },
+   }
+}

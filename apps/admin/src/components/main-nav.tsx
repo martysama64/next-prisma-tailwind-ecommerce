@@ -38,7 +38,7 @@ export function MainNav({
        },
        {
           href: `/inventory`,
-          label: 'Inventory',
+          label: 'Inventory • Low Stock',
           active: pathname.includes(`/inventory`),
        },
        {

@@ -116,8 +116,13 @@ export default function InventoryTransfersPage() {
    return (
       <div className="space-y-6 py-6">
          <div>
-            <h1 className="text-2xl font-semibold">Stock Transfers</h1>
-            <p className="text-sm text-muted-foreground">Move inventory between warehouses.</p>
+            <div className="flex items-center justify-between">
+               <div>
+                  <h1 className="text-2xl font-semibold">Stock Transfers</h1>
+                  <p className="text-sm text-muted-foreground">Move inventory between warehouses.</p>
+               </div>
+               <Button variant="outline" onClick={() => exportTransfersCsv(transfers)}>Export CSV</Button>
+            </div>
          </div>
 
          <div className="grid gap-3 rounded-md border p-4 md:grid-cols-3">
@@ -185,4 +190,29 @@ export default function InventoryTransfersPage() {
 function formatItems(items) {
    if (!Array.isArray(items)) return '-'
    return items.map((item) => `${item.productId}: ${item.quantity}`).join(', ')
+}
+
+function exportTransfersCsv(rows) {
+   downloadCsv('stock-transfers.csv', [
+      ['fromWarehouse', 'toWarehouse', 'status', 'items', 'createdAt'],
+      ...rows.map((row) => [
+         row.fromWarehouse?.name ?? row.fromWarehouseId,
+         row.toWarehouse?.name ?? row.toWarehouseId,
+         row.status,
+         formatItems(row.items),
+         row.createdAt,
+      ]),
+   ])
+}
+
+function downloadCsv(filename, rows) {
+   const csv = rows
+      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','))
+      .join('\n')
+   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+   const link = document.createElement('a')
+   link.href = url
+   link.download = filename
+   link.click()
+   URL.revokeObjectURL(url)
 }

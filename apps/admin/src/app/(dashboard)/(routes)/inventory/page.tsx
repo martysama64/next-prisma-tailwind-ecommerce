@@ -102,6 +102,8 @@ export default function InventoryPage() {
                <p className="text-sm text-muted-foreground">Track physical and reserved stock.</p>
             </div>
             <div className="flex gap-2">
+               <Button variant="outline" onClick={() => exportInventoryCsv(inventory)}>Export CSV</Button>
+               <Link href="/inventory/low-stock"><Button variant="outline">Low Stock</Button></Link>
                <Link href="/inventory/movements"><Button variant="outline">Movements</Button></Link>
                <Link href="/inventory/transfers"><Button variant="outline">Transfers</Button></Link>
             </div>
@@ -175,4 +177,29 @@ export default function InventoryPage() {
          </Dialog>
       </div>
    )
+}
+
+function exportInventoryCsv(rows) {
+   downloadCsv('inventory.csv', [
+      ['product', 'warehouse', 'quantity', 'reservedQuantity', 'availableQuantity'],
+      ...rows.map((row) => [
+         row.product?.title ?? row.productId,
+         row.warehouse?.name ?? row.warehouseId,
+         row.quantity,
+         row.reservedQuantity,
+         row.quantity - row.reservedQuantity,
+      ]),
+   ])
+}
+
+function downloadCsv(filename, rows) {
+   const csv = rows
+      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','))
+      .join('\n')
+   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+   const link = document.createElement('a')
+   link.href = url
+   link.download = filename
+   link.click()
+   URL.revokeObjectURL(url)
 }

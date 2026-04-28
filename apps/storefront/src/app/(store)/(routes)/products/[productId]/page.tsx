@@ -1,4 +1,9 @@
 import Carousel from '@/components/native/Carousel'
+import {
+   getAvailableQuantity,
+   getInventoryAvailabilityStatus,
+   validateTransferItems,
+} from '@/lib/inventory'
 import prisma from '@/lib/prisma'
 import { isVariableValid } from '@/lib/utils'
 import { ChevronRightIcon } from 'lucide-react'
@@ -22,6 +27,12 @@ export async function generateMetadata(
       },
    })
 
+   if (!product) {
+      return {
+         title: 'Product not found',
+      }
+   }
+
    return {
       title: product.title,
       description: product.description,
@@ -44,16 +55,61 @@ export default async function Product({
       include: {
          brand: true,
          categories: true,
+         inventories: {
+            include: {
+               warehouse: true,
+            },
+         },
       },
    })
 
-   if (isVariableValid(product)) {
+   const incomingTransfers = await prisma.stockTransfer.findMany({
+      where: {
+         status: { in: ['PENDING', 'APPROVED'] },
+         toWarehouse: { isActive: true },
+      },
+   })
+
+   const productIncomingTransfers = incomingTransfers.filter((transfer) => {
+      try {
+         return validateTransferItems(transfer.items).some(
+            (item) => item.productId === product?.id
+         )
+      } catch (error) {
+         return false
+      }
+   })
+
+   const productWithAvailability = product
+      ? {
+           ...product,
+           availability: {
+              status: getInventoryAvailabilityStatus(
+                 product,
+                 product.inventories,
+                 productIncomingTransfers
+              ),
+              warehouses: product.inventories.map((inventory) => ({
+                 warehouseId: inventory.warehouseId,
+                 warehouseName: inventory.warehouse.name,
+                 quantity: inventory.quantity,
+                 reservedQuantity: inventory.reservedQuantity,
+                 availableQuantity: getAvailableQuantity(inventory),
+                 incoming: productIncomingTransfers.some(
+                    (transfer) => transfer.toWarehouseId === inventory.warehouseId
+                 ),
+              })),
+           },
+        }
+      : null
+
+   if (isVariableValid(productWithAvailability)) {
       return (
          <>
-            <Breadcrumbs product={product} />
+            <Breadcrumbs product={productWithAvailability} />
             <div className="mt-6 grid grid-cols-1 gap-2 md:grid-cols-3">
-               <ImageColumn product={product} />
-               <DataSection product={product} />
+               <ImageColumn product={productWithAvailability} />
+               <DataSection product={productWithAvailability} />
             </div>
          </>
       )

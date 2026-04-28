@@ -16,7 +16,13 @@ export async function GET(req: Request) {
                include: {
                   items: {
                      include: {
-                        product: true,
+                        product: {
+                           include: {
+                              brand: true,
+                              categories: true,
+                              inventories: true,
+                           },
+                        },
                      },
                   },
                },
