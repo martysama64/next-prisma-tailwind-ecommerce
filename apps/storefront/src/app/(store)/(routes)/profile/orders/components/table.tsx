@@ -11,7 +11,7 @@ export type OrderColumn = {
    isPaid: boolean
    payable: string
    number: string
-   createdAt: string
+   date: string
    status: string
 }
 
