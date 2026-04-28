@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import {
+   completeStockTransfer,
    consumeReservationsForOrder,
    getAvailableQuantity,
    getInventoryAvailabilityStatus,
+   releaseReservationsForOrder,
    validateTransferItems,
 } from '../inventory'
 
@@ -97,6 +99,30 @@ describe('inventory helpers', () => {
          consumeReservationsForOrder(tx as any, 'order-1')
       ).rejects.toThrow('Cannot consume reservation reservation-1')
    })
+
+   test('releases active reservations when an order is cancelled', async () => {
+      const calls: any[] = []
+      const tx = createReleaseReservationTx({ calls })
+
+      const count = await releaseReservationsForOrder(
+         tx as any,
+         'order-1',
+         'RELEASED'
+      )
+
+      expect(count).toBe(1)
+      expect(calls).toContain('inventoryReleased')
+      expect(calls).toContain('reservationReleased')
+      expect(calls).toContain('releaseMovementCreated')
+   })
+
+   test('rejects transfer completion when source stock is unavailable', async () => {
+      const tx = createTransferCompletionTx({ rawResult: 0 })
+
+      await expect(
+         completeStockTransfer(tx as any, 'transfer-1')
+      ).rejects.toThrow('Insufficient transfer stock for product-1')
+   })
 })
 
 function createConsumeReservationTx({ rawResult, calls }) {
@@ -139,5 +165,66 @@ function createConsumeReservationTx({ rawResult, calls }) {
          calls.push('executeRaw')
          return rawResult
       },
+   }
+}
+
+function createReleaseReservationTx({ calls }) {
+   return {
+      inventoryReservation: {
+         findMany: async () => [
+            {
+               id: 'reservation-1',
+               inventoryId: 'inventory-1',
+               warehouseId: 'warehouse-1',
+               productId: 'product-1',
+               quantity: 2,
+            },
+         ],
+         update: async () => {
+            calls.push('reservationReleased')
+         },
+      },
+      inventory: {
+         updateMany: async () => {
+            calls.push('inventoryReleased')
+            return { count: 1 }
+         },
+      },
+      inventoryMovement: {
+         create: async () => {
+            calls.push('releaseMovementCreated')
+         },
+      },
+   }
+}
+
+function createTransferCompletionTx({ rawResult }) {
+   return {
+      stockTransfer: {
+         findUniqueOrThrow: async () => ({
+            id: 'transfer-1',
+            fromWarehouseId: 'warehouse-1',
+            toWarehouseId: 'warehouse-2',
+            status: 'APPROVED',
+            items: [{ productId: 'product-1', quantity: 2 }],
+            reference: 'transfer-ref',
+            fromWarehouse: { isActive: true },
+            toWarehouse: { isActive: true },
+         }),
+      },
+      product: {
+         findMany: async () => [{ id: 'product-1' }],
+         findUniqueOrThrow: async () => ({ allowBackorders: false }),
+      },
+      inventory: {
+         findUnique: async () => ({
+            id: 'inventory-1',
+            warehouseId: 'warehouse-1',
+            productId: 'product-1',
+            quantity: 1,
+            reservedQuantity: 0,
+         }),
+      },
+      $executeRaw: async () => rawResult,
    }
 }

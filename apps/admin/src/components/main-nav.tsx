@@ -2,13 +2,34 @@
 
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
-import { useParams, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 export function MainNav({
    className,
    ...props
 }: React.HTMLAttributes<HTMLElement>) {
    const pathname = usePathname()
+   const [lowStockCount, setLowStockCount] = useState(0)
+
+   useEffect(() => {
+      async function loadLowStockCount() {
+         try {
+            const response = await fetch('/api/inventory?lowStock=true', {
+               cache: 'no-store',
+            })
+
+            if (!response.ok) return
+
+            const json = await response.json()
+            setLowStockCount(Array.isArray(json) ? json.length : 0)
+         } catch (error) {
+            console.error({ error })
+         }
+      }
+
+      loadLowStockCount()
+   }, [])
 
    const routes = [
       {
@@ -38,14 +59,15 @@ export function MainNav({
        },
        {
           href: `/inventory`,
-          label: 'Inventory • Low Stock',
+          label: 'Inventory',
+          badge: lowStockCount,
           active: pathname.includes(`/inventory`),
        },
        {
           href: `/payments`,
-         label: 'Payments',
-         active: pathname.includes(`/payments`),
-      },
+          label: 'Payments',
+          active: pathname.includes(`/payments`),
+       },
       {
          href: `/users`,
          label: 'Users',
@@ -69,18 +91,27 @@ export function MainNav({
          {...props}
       >
          {routes.map((route) => (
-            <Link
-               key={route.href}
-               href={route.href}
-               className={cn(
-                  'text-sm transition-colors hover:text-primary',
-                  route.active
-                     ? 'font-semibold'
-                     : 'font-light text-muted-foreground'
+            <span key={route.href} className="inline-flex items-center gap-1">
+               <Link
+                  href={route.href}
+                  className={cn(
+                     'text-sm transition-colors hover:text-primary',
+                     route.active
+                        ? 'font-semibold'
+                        : 'font-light text-muted-foreground'
+                  )}
+               >
+                  {route.label}
+               </Link>
+               {'badge' in route && route.badge > 0 && (
+                  <Link
+                     href="/inventory/low-stock"
+                     className="rounded-full bg-destructive px-2 py-0.5 text-xs text-destructive-foreground"
+                  >
+                     {route.badge}
+                  </Link>
                )}
-            >
-               {route.label}
-            </Link>
+            </span>
          ))}
       </nav>
    )

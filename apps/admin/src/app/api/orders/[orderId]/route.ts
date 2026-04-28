@@ -1,4 +1,7 @@
-import { consumeReservationsForOrder } from '@/lib/inventory'
+import {
+   consumeReservationsForOrder,
+   releaseReservationsForOrder,
+} from '@/lib/inventory'
 import prisma from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
@@ -29,6 +32,10 @@ export async function PATCH(
 
          if (status === 'Shipped' && currentOrder.status !== 'Shipped') {
             await consumeReservationsForOrder(tx, params.orderId)
+         }
+
+         if (status === 'Cancelled' && currentOrder.status !== 'Cancelled') {
+            await releaseReservationsForOrder(tx, params.orderId, 'RELEASED')
          }
 
          return tx.order.update({
