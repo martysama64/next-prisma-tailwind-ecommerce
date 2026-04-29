@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import {
+   consumeReservationsForOrder,
    getAvailableQuantity,
    getInventoryAvailabilityStatus,
+   releaseReservationsForOrder,
+   reserveStockForOrder,
+   selectWarehouseForOrder,
    validateTransferItems,
 } from '../inventory'
 
@@ -76,4 +80,240 @@ describe('inventory helpers', () => {
          ])
       ).toThrow('Duplicate transfer item productId')
    })
+
+   test('rejects negative transfer quantities', () => {
+      expect(() =>
+         validateTransferItems([{ productId: 'product-1', quantity: -1 }])
+      ).toThrow()
+   })
+
+   test('order creation reserves inventory', async () => {
+      const calls: string[] = []
+      const tx = createReserveTx({ rawResult: 1, calls })
+
+      await reserveStockForOrder(
+         tx as any,
+         { id: 'order-1' },
+         [{ productId: 'product-1', count: 2 }],
+         'warehouse-1'
+      )
+
+      expect(calls).toContain('reservedQuantityIncremented')
+      expect(calls).toContain('reservationCreated')
+      expect(calls).toContain('reservationMovementCreated')
+   })
+
+   test('insufficient stock throws clear behavior', async () => {
+      await expect(
+         selectWarehouseForOrder(
+            createSelectWarehouseTx({ quantity: 1, reservedQuantity: 0 }) as any,
+            [{ productId: 'product-1', count: 2 }]
+         )
+      ).rejects.toThrow('No warehouse can fulfill the cart')
+   })
+
+   test('cancellation releases reservation', async () => {
+      const calls: string[] = []
+      const count = await releaseReservationsForOrder(
+         createReleaseTx({ calls }) as any,
+         'order-1',
+         'RELEASED'
+      )
+
+      expect(count).toBe(1)
+      expect(calls).toContain('inventoryReleased')
+      expect(calls).toContain('reservationReleased')
+   })
+
+   test('backorder product can be ordered without available stock', async () => {
+      const calls: string[] = []
+      const tx = createReserveTx({
+         rawResult: 0,
+         calls,
+         allowBackorders: true,
+         quantity: 0,
+      })
+
+      await reserveStockForOrder(
+         tx as any,
+         { id: 'order-1' },
+         [{ productId: 'product-1', count: 2 }],
+         'warehouse-1'
+      )
+
+      expect(calls).toContain('backorderReserved')
+      expect(calls).toContain('reservationCreated')
+   })
+
+   test('non-tracked product skips reservation', async () => {
+      const calls: string[] = []
+      const tx = createReserveTx({ calls, trackInventory: false })
+
+      await reserveStockForOrder(
+         tx as any,
+         { id: 'order-1' },
+         [{ productId: 'product-1', count: 2 }],
+         'warehouse-1'
+      )
+
+      expect(calls).not.toContain('reservationCreated')
+      expect(calls).not.toContain('reservedQuantityIncremented')
+   })
+
+   test('shipping consumes active reservation and writes OUT movement', async () => {
+      const movements: any[] = []
+      const count = await consumeReservationsForOrder(
+         createConsumeTx({ rawResult: 1, movements }) as any,
+         'order-1'
+      )
+
+      expect(count).toBe(1)
+      expect(movements[0].data.type).toBe('OUT')
+      expect(movements[0].data.quantity).toBe(-2)
+   })
 })
+
+function createReserveTx({
+   rawResult = 1,
+   calls,
+   trackInventory = true,
+   allowBackorders = false,
+   quantity = 10,
+}: {
+   rawResult?: number
+   calls: string[]
+   trackInventory?: boolean
+   allowBackorders?: boolean
+   quantity?: number
+}) {
+   return {
+      product: {
+         findMany: async () => [
+            { id: 'product-1', trackInventory, allowBackorders },
+         ],
+      },
+      inventory: {
+         findUnique: async () => ({
+            id: 'inventory-1',
+            warehouseId: 'warehouse-1',
+            productId: 'product-1',
+            quantity,
+            reservedQuantity: 0,
+         }),
+         update: async () => {
+            calls.push('backorderReserved')
+         },
+      },
+      inventoryReservation: {
+         create: async () => {
+            calls.push('reservationCreated')
+            return { id: 'reservation-1' }
+         },
+      },
+      inventoryMovement: {
+         create: async () => {
+            calls.push('reservationMovementCreated')
+         },
+      },
+      $executeRaw: async () => {
+         calls.push('reservedQuantityIncremented')
+         return rawResult
+      },
+   }
+}
+
+function createSelectWarehouseTx({ quantity, reservedQuantity }) {
+   return {
+      product: {
+         findMany: async () => [
+            {
+               id: 'product-1',
+               trackInventory: true,
+               allowBackorders: false,
+            },
+         ],
+      },
+      warehouse: {
+         findMany: async () => [
+            {
+               id: 'warehouse-1',
+               inventories: [
+                  {
+                     productId: 'product-1',
+                     quantity,
+                     reservedQuantity,
+                  },
+               ],
+            },
+         ],
+      },
+   }
+}
+
+function createReleaseTx({ calls }) {
+   return {
+      inventoryReservation: {
+         findMany: async () => [
+            {
+               id: 'reservation-1',
+               inventoryId: 'inventory-1',
+               warehouseId: 'warehouse-1',
+               productId: 'product-1',
+               quantity: 2,
+            },
+         ],
+         update: async () => {
+            calls.push('reservationReleased')
+         },
+      },
+      inventory: {
+         updateMany: async () => {
+            calls.push('inventoryReleased')
+            return { count: 1 }
+         },
+      },
+      inventoryMovement: {
+         create: async () => {
+            calls.push('releaseMovementCreated')
+         },
+      },
+   }
+}
+
+function createConsumeTx({ rawResult, movements }) {
+   return {
+      inventoryReservation: {
+         findMany: async () => [
+            {
+               id: 'reservation-1',
+               inventoryId: 'inventory-1',
+               warehouseId: 'warehouse-1',
+               productId: 'product-1',
+               quantity: 2,
+               product: { allowBackorders: false },
+            },
+         ],
+         update: async () => undefined,
+      },
+      inventory: {
+         findUnique: async () => ({
+            id: 'inventory-1',
+            quantity: 10,
+            reservedQuantity: 0,
+            reorderPoint: 0,
+            reorderQuantity: 0,
+            product: { title: 'Product' },
+            warehouse: { name: 'Warehouse' },
+         }),
+      },
+      inventoryMovement: {
+         create: async (data) => {
+            movements.push(data)
+         },
+      },
+      owner: {
+         findMany: async () => [],
+      },
+      $executeRaw: async () => rawResult,
+   }
+}
